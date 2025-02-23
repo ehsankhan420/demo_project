@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 from optimizedbackend.authutils import register_biometric, verify_biometric
@@ -10,8 +10,11 @@ from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
 import logging
+import jwt  # Install with `pip install pyjwt`
+import datetime
 
 load_dotenv()
+SECRET_KEY = os.getenv("SECRET_KEY", "your_secret_key")  # Store securely in `.env`
 
 app = FastAPI(
     title=Config.API_TITLE,
@@ -62,11 +65,40 @@ async def rate_limit_middleware(request: Request, call_next):
     response = await call_next(request)
     return response
 
+# Token-based Authentication
+def create_token(user_id: str):
+    payload = {
+        "user_id": user_id,
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=12)  # Token expiry
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+
+def decode_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        return payload["user_id"]
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+# Endpoint for retrieving user ID from token
+@app.get("/get_user_id", tags=["authentication"])
+async def get_user_id(request: Request):
+    token = request.headers.get("Authorization")
+    if not token:
+        raise HTTPException(status_code=401, detail="Authorization token missing")
+    
+    user_id = decode_token(token)
+    return {"user_id": user_id}
+
+
 # Endpoint for an already-registered user to add biometric data
 @app.post("/register_biometric", tags=["authentication"])
 async def register_biometric_endpoint(request: BiometricRequest):
     if not request.user_id.strip() or not request.biometric_data.strip() or not request.biometric_type.strip():
         raise HTTPException(status_code=400, detail="User ID, biometric data, and biometric type cannot be empty")
+    
     # Log biometric record in MongoDB (optional)
     result = db.biometric_records.insert_one({
         "user_id": request.user_id,
@@ -114,8 +146,9 @@ async def login_user(request: LoginRequest):
     user = db.users.find_one({"username": request.username})
     if not user or user["password"] != request.password:
         raise HTTPException(status_code=401, detail="Invalid username or password")
-    
-    return {"success": True, "message": "Login successful"}
+
+    token = create_token(str(user["_id"]))
+    return {"success": True, "message": "Login successful", "token": token}
 
 @app.post("/reset_password", tags=["authentication"])
 async def reset_password(request: PasswordResetRequest):

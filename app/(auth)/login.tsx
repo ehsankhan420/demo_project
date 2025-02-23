@@ -105,7 +105,7 @@ export default function LoginScreen() {
     }
 
     try {
-      const response = await axios.post<ApiResponse>(`${BASE_URL}/register_fingerprint`, {
+      const response = await axios.post<ApiResponse>(`${BASE_URL}/register_biometric`, {
         user_id: userId,
         fingerprint_data: fingerprintData,
       })
