@@ -1,39 +1,26 @@
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Alert, StyleSheet, Platform, Image } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as LocalAuthentication from 'expo-local-authentication';
+import { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Alert, Platform, StyleSheet, Image } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import * as LocalAuthentication from 'expo-local-authentication';
 import * as Crypto from 'expo-crypto';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 
 const BASE_URL = "http://localhost:8000";
 
-export default function BiometricAuth() {
+export default function Auth() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showBiometric, setShowBiometric] = useState(false);
   const [isCompatible, setIsCompatible] = useState(false);
   const [biometricType, setBiometricType] = useState<'fingerprint' | 'facial' | null>(null);
   const [showOTP, setShowOTP] = useState(false);
   const [otp, setOTP] = useState('');
-  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchUserId();
     checkDeviceCompatibility();
   }, []);
-
-  const fetchUserId = async () => {
-    try {
-      const response = await fetch(`${BASE_URL}/get_user_id`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      const data = await response.json();
-      setUserId(data.user_id);
-    } catch (error) {
-      console.error("Error fetching user ID:", error);
-      setShowOTP(true);
-    }
-  };
 
   const checkDeviceCompatibility = async () => {
     if (Platform.OS === 'web') {
@@ -49,25 +36,13 @@ export default function BiometricAuth() {
       }
 
       const enrolled = await LocalAuthentication.isEnrolledAsync();
-      if (!enrolled) {
-        router.push('/BiometricRegistration');
-        return;
-      }
-
-      setIsCompatible(true);
+      setIsCompatible(compatible && enrolled);
+      
       const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
-      if (Platform.OS === 'ios') {
-        if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
-          setBiometricType('facial');
-        } else if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
-          setBiometricType('fingerprint');
-        }
-      } else {
-        if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
-          setBiometricType('fingerprint');
-        } else if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
-          setBiometricType('facial');
-        }
+      if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+        setBiometricType('facial');
+      } else if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+        setBiometricType('fingerprint');
       }
     } catch (error) {
       console.error('Biometric check error:', error);
@@ -75,30 +50,28 @@ export default function BiometricAuth() {
     }
   };
 
-  const generateBiometricHash = async () => {
+  const handleLogin = async () => {
     try {
-      const randomString = `${userId}-${biometricType}-${Date.now()}`;
-      return await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        randomString
-      );
+      const response = await fetch(`${BASE_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem('token', data.token);
+        setShowBiometric(true);
+      } else {
+        Alert.alert('Error', 'Invalid credentials');
+      }
     } catch (error) {
-      console.error("Error generating biometric hash:", error);
-      return null;
+      console.error('Login error:', error);
+      Alert.alert('Error', 'Failed to login');
     }
   };
 
-  const authenticate = async () => {
-    if (!userId) {
-      Alert.alert("Error", "User ID not found.");
-      return;
-    }
-
-    if (Platform.OS === 'web') {
-      setShowOTP(true);
-      return;
-    }
-
+  const authenticateWithBiometric = async () => {
     try {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Authenticate with Biometrics',
@@ -107,28 +80,7 @@ export default function BiometricAuth() {
       });
 
       if (result.success) {
-        const biometricHash = await generateBiometricHash();
-        if (!biometricHash) {
-          setShowOTP(true);
-          return;
-        }
-
-        const response = await fetch(`${BASE_URL}/verify_biometric`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            user_id: userId,
-            biometric_data: biometricHash,
-            biometric_type: biometricType,
-          }),
-        });
-
-        if (response.ok) {
-          router.push('/(app)/(tabs)');
-        } else {
-          Alert.alert("Error", "Biometric verification failed");
-          setShowOTP(true);
-        }
+        router.push('/(app)/(tabs)');
       } else {
         setShowOTP(true);
       }
@@ -144,59 +96,49 @@ export default function BiometricAuth() {
       return;
     }
 
-    try {
-      // Here you would typically verify the OTP with your backend
-      // For now, we'll simulate a successful verification
-      router.push('/(app)/(tabs)');
-    } catch (error) {
-      console.error('OTP verification error:', error);
-      Alert.alert('Error', 'Failed to verify OTP');
-    }
+    // Here you would verify OTP with backend
+    router.push('/(app)/(tabs)');
   };
 
-  return (
-    <LinearGradient colors={['#1e3c72', '#2a5298']} style={styles.container}>
-      <View style={styles.content}>
-        <Image
-          source={{ uri: 'https://your-app-logo.com/logo.png' }}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        
-        <Text style={styles.title}>Secure Authentication</Text>
-        
-        {!showOTP && isCompatible ? (
-          <>
-            <View style={styles.biometricContainer}>
-              <Ionicons 
-                name={biometricType === 'fingerprint' ? 'finger-print' : 'scan'} 
-                size={80} 
-                color="#fff" 
-              />
-            </View>
+  if (showBiometric && isCompatible) {
+    return (
+      <LinearGradient colors={['#1e3c72', '#2a5298']} style={styles.container}>
+        <View style={styles.content}>
+          <Text style={styles.title}>Biometric Authentication</Text>
+          <TouchableOpacity style={styles.biometricContainer} onPress={authenticateWithBiometric}>
+            <Ionicons 
+              name={biometricType === 'fingerprint' ? 'finger-print' : 'scan'} 
+              size={80} 
+              color="#fff" 
+            />
+          </TouchableOpacity>
+          <Text style={styles.description}>
+            {biometricType === 'facial' 
+              ? 'Use Face ID to securely access your account' 
+              : 'Use your fingerprint to securely access your account'}
+          </Text>
+          <TouchableOpacity style={styles.authButton} onPress={authenticateWithBiometric}>
+            <Text style={styles.authButtonText}>Authenticate</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.alternativeButton} 
+            onPress={() => setShowOTP(true)}
+          >
+            <Text style={styles.alternativeButtonText}>Use OTP Instead</Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+    );
+  }
 
-            <Text style={styles.description}>
-              {biometricType === 'facial' 
-                ? 'Use Face ID to securely access your account' 
-                : 'Use your fingerprint to securely access your account'}
-            </Text>
-
-            <TouchableOpacity style={styles.authButton} onPress={authenticate}>
-              <Text style={styles.authButtonText}>Authenticate</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.alternativeButton} 
-              onPress={() => setShowOTP(true)}
-            >
-              <Text style={styles.alternativeButtonText}>Use OTP Instead</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
+  if (showOTP) {
+    return (
+      <LinearGradient colors={['#1e3c72', '#2a5298']} style={styles.container}>
+        <View style={styles.content}>
           <View style={styles.otpContainer}>
             <Text style={styles.otpTitle}>Enter OTP</Text>
             <Text style={styles.otpDescription}>
-              Please enter the 6-digit code sent to your registered email
+              A 6-digit code has been sent to your registered phone number
             </Text>
             <TextInput
               style={styles.otpInput}
@@ -204,37 +146,76 @@ export default function BiometricAuth() {
               onChangeText={setOTP}
               keyboardType="number-pad"
               maxLength={6}
-              placeholder="Enter 6-digit OTP"
-              placeholderTextColor="rgba(255,255,255,0.7)"
+              placeholder="Enter OTP"
+              placeholderTextColor="#rgba(255,255,255,0.5)"
             />
             <TouchableOpacity style={styles.authButton} onPress={verifyOTP}>
               <Text style={styles.authButtonText}>Verify OTP</Text>
             </TouchableOpacity>
           </View>
-        )}
+        </View>
+      </LinearGradient>
+    );
+  }
+
+  return (
+    <LinearGradient colors={['#1e3c72', '#2a5298']} style={styles.container}>
+      <View style={styles.content}>
+        <Text style={styles.title}>Login</Text>
+        <TextInput
+          style={styles.input}
+          value={username}
+          onChangeText={setUsername}
+          placeholder="Username"
+          placeholderTextColor="#rgba(255,255,255,0.5)"
+        />
+        <TextInput
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+          placeholder="Password"
+          placeholderTextColor="#rgba(255,255,255,0.5)"
+          secureTextEntry
+        />
+        <TouchableOpacity style={styles.authButton} onPress={handleLogin}>
+          <Text style={styles.authButtonText}>Login</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.alternativeButton}
+          onPress={() => router.push('/BiometricRegistration')}
+        >
+          <Text style={styles.alternativeButtonText}>Register Biometric</Text>
+        </TouchableOpacity>
       </View>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: {
+    flex: 1,
+  },
   content: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
   },
-  logo: {
-    width: 200,
-    height: 80,
-    marginBottom: 30,
-  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 20,
+    marginBottom: 30,
+  },
+  input: {
+    width: '100%',
+    maxWidth: 300,
+    height: 50,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 10,
+    marginBottom: 15,
+    paddingHorizontal: 15,
+    color: '#fff',
   },
   biometricContainer: {
     width: 120,
@@ -296,10 +277,10 @@ const styles = StyleSheet.create({
     height: 50,
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 10,
+    marginBottom: 20,
     paddingHorizontal: 15,
     color: '#fff',
-    fontSize: 18,
+    fontSize: 20,
     textAlign: 'center',
-    marginBottom: 20,
   },
 });

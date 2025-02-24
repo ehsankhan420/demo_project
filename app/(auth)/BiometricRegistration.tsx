@@ -1,19 +1,36 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as LocalAuthentication from 'expo-local-authentication';
+import { View, Text, TouchableOpacity, Alert, Platform, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
+import * as LocalAuthentication from 'expo-local-authentication';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
 const BASE_URL = "http://localhost:8000";
 
 export default function BiometricRegistration() {
   const [biometricType, setBiometricType] = useState<'fingerprint' | 'facial' | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     checkDeviceCompatibility();
+    fetchUserId();
   }, []);
+
+  const fetchUserId = async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/get_user_id`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      setUserId(data.user_id);
+    } catch (error) {
+      console.error('Error fetching user ID:', error);
+      Alert.alert('Error', 'Failed to fetch user information');
+    }
+  };
 
   const checkDeviceCompatibility = async () => {
     try {
@@ -42,6 +59,11 @@ export default function BiometricRegistration() {
   };
 
   const handleRegister = async () => {
+    if (!userId) {
+      Alert.alert('Error', 'User ID not found');
+      return;
+    }
+
     try {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Register your biometric data',
@@ -49,13 +71,14 @@ export default function BiometricRegistration() {
       });
 
       if (result.success) {
-        const randomString = `${Date.now()}-${biometricType}`;
+        const biometricHash = await generateBiometricHash();
         const response = await fetch(`${BASE_URL}/register_biometric`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            user_id: userId,
+            biometric_data: biometricHash,
             biometric_type: biometricType,
-            biometric_data: randomString,
           }),
         });
 
@@ -72,6 +95,19 @@ export default function BiometricRegistration() {
     } catch (error) {
       console.error('Registration error:', error);
       Alert.alert("Error", "Failed to register biometric data");
+    }
+  };
+
+  const generateBiometricHash = async () => {
+    try {
+      const randomString = `${userId}-${biometricType}-${Date.now()}`;
+      return await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        randomString
+      );
+    } catch (error) {
+      console.error("Error generating biometric hash:", error);
+      return null;
     }
   };
 
@@ -95,14 +131,14 @@ export default function BiometricRegistration() {
         </Text>
 
         <TouchableOpacity style={styles.button} onPress={handleRegister}>
-          <Text style={styles.buttonText}>Register Now</Text>
+          <Text style={styles.buttonText}>Register</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={styles.skipButton} 
           onPress={() => router.push('/(app)/(tabs)')}
         >
-          <Text style={styles.skipButtonText}>Skip for Now</Text>
+          <Text style={styles.skipButtonText}>Skip for now</Text>
         </TouchableOpacity>
       </View>
     </LinearGradient>
@@ -110,7 +146,9 @@ export default function BiometricRegistration() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: {
+    flex: 1,
+  },
   content: {
     flex: 1,
     alignItems: 'center',
@@ -146,7 +184,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     width: '100%',
     maxWidth: 300,
-    marginBottom: 15,
   },
   buttonText: {
     color: '#1e3c72',
@@ -155,7 +192,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   skipButton: {
-    paddingVertical: 15,
+    marginTop: 20,
   },
   skipButtonText: {
     color: '#fff',
