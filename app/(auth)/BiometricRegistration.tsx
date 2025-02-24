@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert, Platform, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import * as Crypto from 'expo-crypto';
 
 const BASE_URL = "http://localhost:8000";
 
@@ -101,10 +101,11 @@ export default function BiometricRegistration() {
   const generateBiometricHash = async () => {
     try {
       const randomString = `${userId}-${biometricType}-${Date.now()}`;
-      return await Crypto.digestStringAsync(
+      const hash = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
         randomString
       );
+      return hash;
     } catch (error) {
       console.error("Error generating biometric hash:", error);
       return null;

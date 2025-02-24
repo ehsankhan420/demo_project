@@ -1,6 +1,14 @@
-
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, Platform, StyleSheet, Image } from 'react-native';
+import { 
+  View, 
+  Text, 
+  TouchableOpacity, 
+  Alert, 
+  Platform, 
+  StyleSheet, 
+  Image,
+  TextInput  
+} from 'react-native';
 import { router } from 'expo-router';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as Crypto from 'expo-crypto';
@@ -182,7 +190,9 @@ export default function Auth() {
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.alternativeButton}
-          onPress={() => router.push('/BiometricRegistration')}
+          onPress={() => router.push({
+            pathname: "/(auth)BiometricRegistration"
+          })}
         >
           <Text style={styles.alternativeButtonText}>Register Biometric</Text>
         </TouchableOpacity>
