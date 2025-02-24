@@ -21,6 +21,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
 import axios from "axios"
 import Reanimated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from "react-native-reanimated"
+import type { ViewStyle } from 'react-native'
 
 const BASE_URL = "http://localhost:8000" // Change this if running on a device
 
@@ -139,28 +140,36 @@ export default function LoginScreen() {
     }
   })
 
-  const inputAnimatedStyle = useAnimatedStyle(() => {
+  const inputAnimatedStyle = useAnimatedStyle((): ViewStyle => {
     return {
       borderColor: "transparent",
       borderWidth: 0,
       shadowOpacity: 0,
       shadowColor: "transparent",
-      shadowOffset: { width: 0, height: 0 },
+      shadowOffset: {
+        width: 0,
+        height: 0
+      },
       shadowRadius: 0,
-      elevation: 0,
+      elevation: 0
     }
   })
-
-  const containerAnimatedStyle = useAnimatedStyle(() => {
+  
+  const containerAnimatedStyle = useAnimatedStyle((): ViewStyle => {
     return {
-      outline: inputFocus.value === 1 ? "2px solid black" : "none",
       borderColor: "transparent",
       borderWidth: 0,
       shadowOpacity: 0,
       shadowColor: "transparent",
-      shadowOffset: { width: 0, height: 0 },
+      shadowOffset: {
+        width: 0,
+        height: 0
+      },
       shadowRadius: 0,
       elevation: 0,
+      ...(Platform.OS === 'web' ? {
+        outline: inputFocus.value === 1 ? "2px solid black" : "none",
+      } : {})
     }
   })
 
@@ -181,7 +190,7 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.formContainer}>
-              <Reanimated.View style={[styles.inputContainer, inputAnimatedStyle, fadeInStyle, containerAnimatedStyle]}>
+              <Reanimated.View style={[styles.inputContainer, inputAnimatedStyle, fadeInStyle]}>
                 <Ionicons name="person-outline" size={20} color="#2a4b87" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
@@ -229,7 +238,7 @@ export default function LoginScreen() {
 
               <Reanimated.View style={[styles.registerContainer, fadeInStyle]}>
                 <Text style={styles.registerText}>Don't have an account? </Text>
-                <TouchableOpacity onPress={() => router.push("/register")}>
+                <TouchableOpacity onPress={() => router.push("/(auth)/register")}>
                   <Text style={styles.registerLink}>Register Now</Text>
                 </TouchableOpacity>
               </Reanimated.View>

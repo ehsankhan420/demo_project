@@ -32,3 +32,13 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+.env
+
+# optimized backend
+optimizedbackend/__pycache__
+optimizedbackend/venv
+optimizedbackend/.env
+
+
+venv/
