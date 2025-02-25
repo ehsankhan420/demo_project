@@ -5,8 +5,19 @@ run = "npm run dev"
 channel = "stable-24_05"
 
 [deployment]
-run = ["sh", "-c", "npm run dev"]
+run = ["sh", "-c", "python -m optimizedbackend.main"]
 
 [[ports]]
 localPort = 8081
 externalPort = 80
+
+[workflows]
+runButton = "Backend"
+
+[[workflows.workflow]]
+name = "Backend"
+author = 39988686
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python -m optimizedbackend.main"
