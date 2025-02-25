@@ -6,11 +6,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
 
-const BASE_URL = "http://localhost:8000";
+const BASE_URL = "http://0.0.0.0:8000";
 
 export default function BiometricRegistration() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [biometricType, setBiometricType] = useState<'fingerprint' | 'facial' | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     checkDeviceCompatibility();
@@ -59,8 +61,8 @@ export default function BiometricRegistration() {
   };
 
   const handleRegister = async () => {
-    if (!userId) {
-      Alert.alert('Error', 'User ID not found');
+    if (!username || !password) {
+      Alert.alert('Error', 'Please enter username and password');
       return;
     }
 
@@ -115,8 +117,24 @@ export default function BiometricRegistration() {
   return (
     <LinearGradient colors={['#1e3c72', '#2a5298']} style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Register Biometric</Text>
+        <Text style={styles.title}>Register</Text>
         
+        <TextInput
+          style={styles.input}
+          value={username}
+          onChangeText={setUsername}
+          placeholder="Username"
+          placeholderTextColor="#rgba(255,255,255,0.5)"
+        />
+        <TextInput
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+          placeholder="Password"
+          placeholderTextColor="#rgba(255,255,255,0.5)"
+          secureTextEntry
+        />
+
         <View style={styles.iconContainer}>
           <Ionicons 
             name={biometricType === 'fingerprint' ? 'finger-print' : 'scan'} 
