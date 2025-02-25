@@ -69,7 +69,7 @@ export default function Auth() {
       if (response.ok) {
         const data = await response.json();
         localStorage.setItem('token', data.token);
-        setShowBiometric(true);
+        router.push('/BiometricVerification');
       } else {
         Alert.alert('Error', 'Invalid credentials');
       }
