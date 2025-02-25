@@ -21,27 +21,16 @@ import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
 import axios from "axios"
 import Reanimated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from "react-native-reanimated"
-import type { ViewStyle } from 'react-native'
 
-const BASE_URL = "http://localhost:8000" // Change this if running on a device
-
-interface ApiResponse {
-  success: boolean
-  message?: string
-}
+const BASE_URL = "http://0.0.0.0:8000"
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity)
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient)
-
-const { width } = Dimensions.get("window")
 
 export default function LoginScreen() {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [userId, setUserId] = useState("")
-  const [fingerprintData, setFingerprintData] = useState("")
-  const [message, setMessage] = useState("")
   const [modalVisible, setModalVisible] = useState(false)
   const [modalMessage, setModalMessage] = useState("")
 
@@ -75,7 +64,7 @@ export default function LoginScreen() {
 
     setIsLoading(true)
     try {
-      const response = await axios.post<ApiResponse>(`${BASE_URL}/login`, {
+      const response = await axios.post(`${BASE_URL}/login`, {
         username,
         password,
       })
@@ -84,7 +73,7 @@ export default function LoginScreen() {
         setModalMessage("Login Successful")
         setModalVisible(true)
         setTimeout(() => {
-          router.push("/(app)/(tabs)")
+          router.push("/(auth)/BiometricRegistration")
         }, 1500)
       } else {
         setModalMessage("Login Failed: " + response.data.message)
@@ -95,27 +84,6 @@ export default function LoginScreen() {
       setModalVisible(true)
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const registerFingerprint = async () => {
-    if (!userId || !fingerprintData) {
-      setModalMessage("Please enter both User ID and Fingerprint Data")
-      setModalVisible(true)
-      return
-    }
-
-    try {
-      const response = await axios.post<ApiResponse>(`${BASE_URL}/register_biometric`, {
-        user_id: userId,
-        fingerprint_data: fingerprintData,
-      })
-
-      setModalMessage(response.data.message || "Fingerprint registered successfully")
-      setModalVisible(true)
-    } catch (error) {
-      setModalMessage("Error registering fingerprint")
-      setModalVisible(true)
     }
   }
 
@@ -132,46 +100,6 @@ export default function LoginScreen() {
   const onPressOut = () => {
     buttonScale.value = withSpring(1)
   }
-
-  const fadeInStyle = useAnimatedStyle(() => {
-    return {
-      opacity: withTiming(1, { duration: 1000 }),
-      transform: [{ translateY: withTiming(0, { duration: 1000 }) }],
-    }
-  })
-
-  const inputAnimatedStyle = useAnimatedStyle((): ViewStyle => {
-    return {
-      borderColor: "transparent",
-      borderWidth: 0,
-      shadowOpacity: 0,
-      shadowColor: "transparent",
-      shadowOffset: {
-        width: 0,
-        height: 0
-      },
-      shadowRadius: 0,
-      elevation: 0
-    }
-  })
-  
-  const containerAnimatedStyle = useAnimatedStyle((): ViewStyle => {
-    return {
-      borderColor: "transparent",
-      borderWidth: 0,
-      shadowOpacity: 0,
-      shadowColor: "transparent",
-      shadowOffset: {
-        width: 0,
-        height: 0
-      },
-      shadowRadius: 0,
-      elevation: 0,
-      ...(Platform.OS === 'web' ? {
-        outline: inputFocus.value === 1 ? "2px solid black" : "none",
-      } : {})
-    }
-  })
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
@@ -190,7 +118,7 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.formContainer}>
-              <Reanimated.View style={[styles.inputContainer, inputAnimatedStyle, fadeInStyle]}>
+              <Reanimated.View style={[styles.inputContainer, { opacity: fadeAnim }]}>
                 <Ionicons name="person-outline" size={20} color="#2a4b87" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
@@ -199,12 +127,10 @@ export default function LoginScreen() {
                   value={username}
                   onChangeText={setUsername}
                   autoCapitalize="none"
-                  onFocus={() => (inputFocus.value = withTiming(1))}
-                  onBlur={() => (inputFocus.value = withTiming(0))}
                 />
               </Reanimated.View>
 
-              <Reanimated.View style={[styles.inputContainer, inputAnimatedStyle, fadeInStyle, containerAnimatedStyle]}>
+              <Reanimated.View style={[styles.inputContainer, { opacity: fadeAnim }]}>
                 <Ionicons name="lock-closed-outline" size={20} color="#2a4b87" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
@@ -213,19 +139,17 @@ export default function LoginScreen() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
-                  onFocus={() => (inputFocus.value = withTiming(1))}
-                  onBlur={() => (inputFocus.value = withTiming(0))}
                 />
               </Reanimated.View>
 
-              <Reanimated.View style={[styles.forgotPassword, fadeInStyle]}>
-              <TouchableOpacity onPress={() => router.push("/forgotPassword")}>
+              <Reanimated.View style={[styles.forgotPassword, { opacity: fadeAnim }]}>
+                <TouchableOpacity onPress={() => router.push("/forgotPassword")}>
                   <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                 </TouchableOpacity>
               </Reanimated.View>
 
-              <Reanimated.View style={[animatedButtonStyle, fadeInStyle]}>
-                <AnimatedTouchableOpacity
+              <Reanimated.View style={[animatedButtonStyle, { opacity: fadeAnim }]}>
+                <TouchableOpacity
                   style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
                   onPress={handleLogin}
                   disabled={isLoading}
@@ -233,52 +157,14 @@ export default function LoginScreen() {
                   onPressOut={onPressOut}
                 >
                   <Text style={styles.loginButtonText}>{isLoading ? "Logging in..." : "Login"}</Text>
-                </AnimatedTouchableOpacity>
+                </TouchableOpacity>
               </Reanimated.View>
 
-              <Reanimated.View style={[styles.registerContainer, fadeInStyle]}>
+              <Reanimated.View style={[styles.registerContainer, { opacity: fadeAnim }]}>
                 <Text style={styles.registerText}>Don't have an account? </Text>
                 <TouchableOpacity onPress={() => router.push("/(auth)/register")}>
                   <Text style={styles.registerLink}>Register Now</Text>
                 </TouchableOpacity>
-              </Reanimated.View>
-
-              <Reanimated.View style={[styles.fingerprintContainer, fadeInStyle]}>
-                <Reanimated.View style={[styles.inputContainer, inputAnimatedStyle, containerAnimatedStyle]}>
-                  <Ionicons name="finger-print-outline" size={20} color="#2a4b87" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="User ID"
-                    placeholderTextColor="#5373ac"
-                    value={userId}
-                    onChangeText={setUserId}
-                    onFocus={() => (inputFocus.value = withTiming(1))}
-                    onBlur={() => (inputFocus.value = withTiming(0))}
-                  />
-                </Reanimated.View>
-                <Reanimated.View style={[styles.inputContainer, inputAnimatedStyle, containerAnimatedStyle]}>
-                  <Ionicons name="scan-outline" size={20} color="#2a4b87" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Fingerprint Data"
-                    placeholderTextColor="#5373ac"
-                    value={fingerprintData}
-                    onChangeText={setFingerprintData}
-                    onFocus={() => (inputFocus.value = withTiming(1))}
-                    onBlur={() => (inputFocus.value = withTiming(0))}
-                  />
-                </Reanimated.View>
-                <AnimatedTouchableOpacity
-                  style={[styles.loginButton, animatedButtonStyle]}
-                  onPress={registerFingerprint}
-                  onPressIn={onPressIn}
-                  onPressOut={onPressOut}
-                >
-                  <Text style={styles.loginButtonText}>Register Fingerprint</Text>
-                </AnimatedTouchableOpacity>
-                {message ? (
-                  <Reanimated.Text style={[styles.messageText, fadeInStyle]}>{message}</Reanimated.Text>
-                ) : null}
               </Reanimated.View>
             </View>
           </Animated.View>
@@ -289,9 +175,7 @@ export default function LoginScreen() {
         animationType="slide"
         transparent={true}
         visible={modalVisible}
-        onRequestClose={() => {
-          setModalVisible(!modalVisible)
-        }}
+        onRequestClose={() => setModalVisible(!modalVisible)}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalView}>
@@ -411,15 +295,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     textDecorationLine: "underline",
   },
-  fingerprintContainer: {
-    marginTop: 30,
-  },
-  messageText: {
-    color: "#fff",
-    textAlign: "center",
-    fontSize: 14,
-    marginTop: 10,
-  },
   modalContainer: {
     flex: 1,
     justifyContent: "center",
@@ -461,4 +336,3 @@ const styles = StyleSheet.create({
     color: "#2a4b87",
   },
 })
-
