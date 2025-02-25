@@ -8,6 +8,10 @@ channel = "stable-24_05"
 run = ["sh", "-c", "python -m optimizedbackend.main"]
 
 [[ports]]
+localPort = 8000
+externalPort = 8000
+
+[[ports]]
 localPort = 8081
 externalPort = 80
 
